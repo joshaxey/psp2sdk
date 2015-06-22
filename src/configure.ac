@@ -1,7 +1,12 @@
 #                                               -*- Autoconf -*-
 # Process this file with autoconf to produce a configure script.
+#
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-AC_INIT(psp2sdk, 0.0, https://github.com/173210/psp2sdk/issues)
+AC_INIT(PSP2SDK, dirty-m4_esyscmd_s([git describe --always]),
+	https://github.com/173210/psp2sdk/issues)
 AC_CONFIG_SRCDIR(include/psp2/moduleinfo.h)
 
 AM_INIT_AUTOMAKE(foreign -Wno-portability)
@@ -18,6 +23,7 @@ if test "$ac_compiler_gnu" = yes; then
 	CFLAGS="$CFLAGS -Wall -mcpu=cortex-a9 -mfpu=neon-fp16"
 fi
 
+AC_CHECK_TOOL(AR, ar, :)
 AM_PROG_AS
 
 # Checks for header files.
@@ -33,7 +39,7 @@ AC_CHECK_TYPES(uint16_t, , AC_MSG_ERROR(uint16_t not defined.),
 AC_CHECK_TYPES(uint32_t, , AC_MSG_ERROR(uint32_t not defined.),
 	[#include <stdint.h>])
 
-AC_OUTPUT([Makefile include/Makefile stubs/Makefile
+AC_OUTPUT([Doxyfile Makefile include/Makefile start/Makefile stubs/Makefile
 	stubs/SceNpUtility_stub/Makefile
 	stubs/SceHmac_stub/Makefile
 	stubs/SceCodecEnginePerf_stub/Makefile

@@ -1,17 +1,8 @@
 # Copyright (C) 2015 PSP2SDK Project
 #
-# This library is free software; you can redistribute it and/or
-# modify it under the terms of the GNU Lesser General Public
-# License version 2.1 as published by the Free Software Foundation
-#
-# This library is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-# Lesser General Public License for more details.
-#
-# You should have received a copy of the GNU Lesser General Public
-# License along with this library; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 PREFIX = _SceSqlite-0001_
 ENTRIES_PREFIX = $(PREFIX)F00_
@@ -59,12 +50,12 @@ NIDS = 0x014863a6 0x02ada92d 0x063bfaca 0x082c36d4 	\
 	0xf0de1a97 0xf1f2c9be 0xf206fba1 0xf2ab9c89 	\
 	0xf48e021b 0xf7abf5fa 0xf7fe99c8 0xf8aa518b 	\
 	0xfc127a83 0xfe237ed7 0xff8a9974 0x1aec1f74 	\
-	0xb80d43c7 
+	0xb80d43c7
 
 ENTRIES = $(addsuffix .o,$(addprefix $(ENTRIES_PREFIX),$(subst 0x,,$(NIDS))))
 
 lib_LIBRARIES = libSceSqlite_stub.a
-libSceSqlite_stub_a_SOURCES = SceSqlite_stub.S 
+libSceSqlite_stub_a_SOURCES = SceSqlite_stub.S
 am_libSceSqlite_stub_a_OBJECTS =	\
 	$(PREFIX)head.o $(PREFIX)NIDS.o $(ENTRIES)
 

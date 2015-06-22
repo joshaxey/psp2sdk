@@ -4,22 +4,13 @@
  *
  * Copyright (C) 2015 PSP2SDK Project
  *
- * This library is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License version 2.1 as published by the Free Software Foundation
- *
- * This library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
 
-#ifndef _PSP2TYPES_H_
-#define _PSP2TYPES_H_
+#ifndef _PSP2_TYPES_H_
+#define _PSP2_TYPES_H_
 
 #include <stddef.h>
 #include <stdint.h>
@@ -38,7 +29,7 @@ typedef int16_t  SceInt16;
 typedef uint16_t  SceUInt16;
 
 typedef int32_t SceInt32;
-typedef uint32_t SceInt32;
+typedef uint32_t SceUInt32;
 
 typedef int32_t SceInt;
 typedef uint32_t SceUInt;
@@ -49,12 +40,15 @@ typedef uint64_t SceUInt64;
 typedef int64_t SceLong64;
 typedef uint64_t SceULong64;
 
-typedef size_t SceSize;
-typedef ssize_t SceSSize;
+typedef unsigned int SceSize;
+typedef int SceSSize;
 
 typedef int SceBool;
-#define SCE_TRUE (1)
-#define SCE_FALSE (0)
+
+enum {
+	PSP2_FALSE,
+	PSP2_TRUE
+};
 
 typedef float SceFloat;
 typedef float SceFloat32;
@@ -68,11 +62,11 @@ typedef signed char SceSByte8;
 typedef unsigned char SceByte;
 typedef unsigned char SceByte8;
 
-typedef short unsigned int SceWChar16;
-typedef unsigned int SceWChar32;
+typedef uint16_t SceWChar16;
+typedef uint32_t SceWChar32;
 
 typedef void SceVoid;
-typedef void* ScePVoid;
+typedef void *ScePVoid;
 
 typedef int SceIntPtr;
 typedef unsigned int SceUIntPtr;
@@ -108,6 +102,13 @@ typedef struct SceIVector4 {
     SceInt w;
 } SceIVector4;
 
+typedef struct SceUVector4 {
+    SceUInt x;
+    SceUInt y;
+    SceUInt z;
+    SceUInt w;
+} SceUVector4;
+
 typedef struct SceFVector4 {
     SceFloat x;
     SceFloat y;
@@ -141,12 +142,21 @@ typedef struct SceIMatrix4 {
     SceIVector4 x;
     SceIVector4 y;
     SceIVector4 z;
+    SceIVector4 w;
 } SceIMatrix4;
+
+typedef struct SceUMatrix4 {
+    SceUVector4 x;
+    SceUVector4 y;
+    SceUVector4 z;
+    SceUVector4 w;
+} SceUMatrix4;
 
 typedef struct SceFMatrix4 {
     SceFVector4 x;
     SceFVector4 y;
     SceFVector4 z;
+    SceFVector4 w;
 } SceFMatrix4;
 
 typedef struct SceFQuaternion {
@@ -212,23 +222,6 @@ typedef union SceUnion128 {
     SceIVector4 iv;
 } SceUnion128;
 
-typedef union SceUnion512 {
-    SceUnion32 un32[16];
-    SceUnion64 un64[8];
-    SceULong64 ull[8];
-    SceLong64 ll[8];
-    unsigned int ui[16];
-    int i[16];
-    unsigned short us[32];
-    short s[32];
-    unsigned char uc[64];
-    char c[64];
-    float f[16];
-    SceFMatrix4 fm;
-    SceIMatrix4 im;
-    SceUMatrix4 um;
-} SceUnion512;
-        
 typedef struct SceDateTime {
     unsigned short year;
     unsigned short month;
@@ -239,11 +232,15 @@ typedef struct SceDateTime {
     unsigned int microsecond;
 } SceDateTime;
 
-typedef int SceUID; //!< UIDs are used to describe many different kernel objects. 
-typedef int ScePID; //!< Process ID
-
+typedef int SceMode; //!< Mode for I/O functions
 typedef SceInt64 SceOff; //!< Offset type
 
-typedef char* SceName; //!< Names are used to describe object names
+typedef int SceUID; //!< UIDs are used to describe many different kernel objects.
 
-#endif /* _PSP2TYPES_H_ */
+typedef int ScePID; //!< Process ID
+#define PSP2_KERNEL_PROCESS_ID_SELF 0 //!< Current running process ID is always 0
+
+typedef char* SceName; //!< Names are used to describe object names
+#define PSP2_UID_NAMELEN 31 //!< Maximum length for kernel object names
+
+#endif

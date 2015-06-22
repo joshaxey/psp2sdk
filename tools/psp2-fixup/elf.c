@@ -1,18 +1,9 @@
 /*
  * Copyright (C) 2015 PSP2SDK Project
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License version 2.1 as published by the Free Software Foundation
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
 
 #include <errno.h>
@@ -21,8 +12,11 @@
 #include "elf_priv.h"
 #include "elf_psp2.h"
 #include "elf.h"
+#include "info.h"
+#include "rel.h"
 #include "scn.h"
 #include "seg.h"
+#include "stub.h"
 
 int openElf(elf_t *dst, const char *path)
 {
@@ -40,10 +34,17 @@ int openElf(elf_t *dst, const char *path)
 	}
 
 	if (fread(&dst->ehdr, sizeof(dst->ehdr), 1, dst->fp) <= 0) {
-		perror(path);
+		if (feof(dst->fp)) {
+			fprintf(stderr, "%s: Unexpected EOF\n", path);
+			errno = EILSEQ;
+		} else
+			perror(path);
+
 		fclose(dst->fp);
 		return errno;
 	}
+
+	dst->orgShnum = dst->ehdr.e_shnum;
 
 	dst->scns = getScns(dst->fp, path, &dst->ehdr);
 	if (dst->scns == NULL) {
@@ -51,59 +52,67 @@ int openElf(elf_t *dst, const char *path)
 		return errno;
 	}
 
-	dst->segs = getSegs(dst->fp, path, &dst->ehdr, dst->scns);
-	if (dst->segs == NULL) {
+	dst->strtab = dst->scns + dst->ehdr.e_shstrndx;
+	res = loadScn(dst->fp, dst->strtab, path);
+	if (res) {
 		free(dst->scns);
+		fclose(dst->fp);
+		return res;
+	}
+
+	dst->symtab = findScnByType(dst->scns, dst->ehdr.e_shnum,
+		SHT_SYMTAB, path);
+	if (dst->symtab == NULL) {
+		free(dst->scns);
+		free(dst->strtab->content);
 		fclose(dst->fp);
 		return errno;
 	}
 
-	dst->strtab.scn = dst->scns + dst->ehdr.e_shstrndx;
-	dst->strtab.content = loadScn(dst->fp, path, dst->strtab.scn, NULL);
-	if (dst->strtab.content == NULL) {
+	res = loadScn(dst->fp, dst->symtab,
+		dst->strtab->content + dst->symtab->shdr.sh_name);
+	if (res) {
 		free(dst->scns);
-		freeSegs(dst->segs, dst->ehdr.e_phnum);
+		free(dst->strtab->content);
 		fclose(dst->fp);
-		return errno;
-	}
-
-	dst->symtab.scn = getSymtabScn(path, dst->scns, dst->ehdr.e_shnum);
-	if (dst->symtab.scn == NULL) {
-		free(dst->scns);
-		freeSegs(dst->segs, dst->ehdr.e_phnum);
-		free(dst->strtab.content);
-		fclose(dst->fp);
-		return errno;
-	}
-
-	dst->symtab.content = loadScn(dst->fp, path,
-		dst->symtab.scn, dst->strtab.content);
-	if (dst->symtab.content == NULL) {
-		free(dst->scns);
-		freeSegs(dst->segs, dst->ehdr.e_phnum);
-		free(dst->strtab.content);
-		fclose(dst->fp);
-		return errno;
+		return res;
 	}
 
 	res = getSceScns(&dst->sceScns, dst->scns, dst->ehdr.e_shnum,
-		dst->strtab.content, path);
+		dst->strtab->content, path);
 	if (res) {
 		free(dst->scns);
-		freeSegs(dst->segs, dst->ehdr.e_phnum);
-		free(dst->strtab.content);
-		free(dst->symtab.content);
+		free(dst->strtab->content);
+		free(dst->symtab->content);
 		fclose(dst->fp);
+		return res;
 	}
 
-	return res;
+	dst->segs = getSegs(dst->fp, path, &dst->ehdr,
+		dst->scns, &dst->rela, dst->sceScns.relMark);
+	if (dst->segs == NULL) {
+		free(dst->scns);
+		free(dst->strtab->content);
+		free(dst->symtab->content);
+		fclose(dst->fp);
+		return errno;
+	}
+
+	return 0;
 }
 
-int closeElf(const elf_t *elf)
+int closeElf(elf_t *elf)
 {
 	int res;
+
 	if (elf == NULL)
 		return EINVAL;
+
+	while (elf->orgShnum) {
+		elf->orgShnum--;
+		if (elf->scns[elf->orgShnum].content != NULL)
+			free(elf->scns[elf->orgShnum].content);
+	}
 
 	free(elf->scns);
 	res = freeSegs(elf->segs, elf->ehdr.e_phnum);
@@ -113,49 +122,17 @@ int closeElf(const elf_t *elf)
 		return errno;
 	}
 
-	if (elf->stubContents.relaFstub != NULL)
-		free(elf->stubContents.relaFstub);
-
-	if (elf->stubContents.relaStub != NULL)
-		free(elf->stubContents.relaStub);
-
-	if (elf->stubContents.fnid != NULL)
-		free(elf->stubContents.fnid);
-
-	if (elf->stubContents.stub != NULL)
-		free(elf->stubContents.stub);
-
 	return res;
 }
 
 static int updateEhdr(Elf32_Ehdr *ehdr, const char *path,
 	seg_t *segs, scn_t *modinfo)
 {
-	Elf32_Off offset;
-	int i, j;
-
 	if (ehdr == NULL || segs == NULL)
 		return EINVAL;
 
-	ehdr->e_type = ET_SCE_RELEXEC;
-
-	for (i = 0; i < ehdr->e_phnum || i < 4; i++)
-		for (j = 0; j < segs[i].shnum; j++)
-			if (segs[i].scns[j] == modinfo)
-					goto found;
-
-	fprintf(stderr, "%s: .sceModuleInfo.rodata not found\n", path);
-	return EILSEQ;
-
-found:
-	offset = modinfo->shdr.sh_offset - segs[i].phdr.p_offset;
-	if (offset >= 1 << 30) {
-		fprintf(stderr, "%s: .sceModuleInfo.rodata is invalid\n", path);
-		return EILSEQ;
-	}
-
-	ehdr->e_entry = (i << 30) | offset;
-
+	ehdr->e_type = ET_PSP2_RELEXEC;
+	ehdr->e_entry = (modinfo->phndx << 30) | modinfo->segOffset;
 	ehdr->e_phoff = sizeof(Elf32_Ehdr);
 	ehdr->e_shoff = 0;
 	ehdr->e_shentsize = 0;
@@ -174,7 +151,7 @@ static int updateSymtab(Elf32_Sym *symtab, Elf32_Word size, scn_t *scns)
 		if (symtab->st_shndx != SHN_UNDEF
 			&& symtab->st_shndx < SHN_LORESERVE)
 		{
-			symtab->st_value -= scns[symtab->st_shndx].addrDiff;
+			symtab->st_value += scns[symtab->st_shndx].addrDiff;
 		}
 
 		symtab++;
@@ -186,6 +163,7 @@ static int updateSymtab(Elf32_Sym *symtab, Elf32_Word size, scn_t *scns)
 
 int updateElf(elf_t *elf)
 {
+	syslib_t syslib;
 	int res;
 
 	if (elf == NULL)
@@ -195,18 +173,45 @@ int updateElf(elf_t *elf)
 	if (res)
 		return res;
 
-	res = updateSegs(elf->segs, elf->ehdr.e_phnum, elf->strtab.content);
+	res = updateSegs(elf->segs, elf->ehdr.e_phnum, elf->strtab->content);
 	if (res)
 		return res;
 
-	res = updateEhdr(&elf->ehdr,
-		elf->path, elf->segs, elf->sceScns.modinfo);
-	if (res)
-		return res;
-
-	res = updateSymtab(elf->symtab.content, elf->symtab.scn->orgSize,
+	res = updateSymtab(elf->symtab->content, elf->symtab->orgSize,
 		elf->scns);
-	return res;
+	if (res)
+		return res;
+
+	res = updateRel(elf->fp, elf->scns,
+		elf->strtab->content, elf->symtab->content,
+		elf->rela->scns, elf->rela->shnum);
+	if (res)
+		return res;
+
+	res = findSyslib(&syslib, elf->fp, elf->scns, elf->ehdr.e_shnum,
+		elf->segs, elf->rela, elf->strtab->content, elf->symtab->content,
+		elf->sceScns.ent, elf->sceScns.relEnt);
+	if (res)
+		return res;
+
+	res = updateStubs(&elf->sceScns, elf->fp, elf->scns, elf->segs,
+		elf->strtab->content, elf->symtab->content);
+	if (res)
+		return res;
+
+	res = convRelToRela(elf->scns, elf->segs, elf->symtab->content,
+		elf->rela->scns, elf->rela->shnum);
+	if (res)
+		return res;
+
+	res = updateModinfo(elf->fp, elf->scns, elf->ehdr.e_shnum, &elf->sceScns,
+		elf->segs[elf->sceScns.modinfo->phndx].phdr.p_vaddr,
+		&syslib, elf->strtab->content, elf->path);
+	if (res)
+		return res;
+
+	return updateEhdr(&elf->ehdr,
+		elf->path, elf->segs, elf->sceScns.modinfo);
 }
 
 int writeElf(const char *path, elf_t *elf)
@@ -235,9 +240,8 @@ int writeElf(const char *path, elf_t *elf)
 		return res;
 	}
 
-	res = writeSegs(fp, elf->fp, elf->scns, elf->segs, elf->ehdr.e_phnum,
-		&elf->sceScns, &elf->stubContents,
-		elf->strtab.content, elf->symtab.content);
+	res = writeSegs(fp, elf->fp, elf->segs, elf->ehdr.e_phnum,
+		elf->strtab->content);
 	if (res) {
 		fclose(fp);
 		return res;

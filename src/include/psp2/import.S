@@ -1,21 +1,12 @@
 @ Copyright (C) 2015 PSP2SDK Project
 @
-@ This library is free software; you can redistribute it and/or
-@ modify it under the terms of the GNU Lesser General Public
-@ License version 2.1 as published by the Free Software Foundation
-@
-@ This library is distributed in the hope that it will be useful,
-@ but WITHOUT ANY WARRANTY; without even the implied warranty of
-@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-@ Lesser General Public License for more details.
-@
-@ You should have received a copy of the GNU Lesser General Public
-@ License along with this library; if not, write to the Free Software
-@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+@ This Source Code Form is subject to the terms of the Mozilla Public
+@ License, v. 2.0. If a copy of the MPL was not distributed with this
+@ file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 .macro PSP2_IMPORT_HEAD nid, name, num, ver, pkgVer
 #ifdef HEAD
-	.section .sce_libgen_mark
+	.section .sce_libgen_mark, "", %progbits
 	.align	2
 	.global	_\name\()_\num\()_stub_head
 _\name\()_\num\()_stub_head:
@@ -24,15 +15,15 @@ _\name\()_\num\()_stub_head:
 	.word	_\name\()_stub_str
 	.word	\ver
 	.word	0x00000000
-	.word	0x00000000
-	.size	_\name\()_\num\()_stub_head, .-_\name\()_\num\()_stub_head
 
 	.global	_sce_package_version_\name
 _sce_package_version_\name:
 	.word	\pkgVer
 	.size	_sce_package_version_\name, .-_sce_package_version_\name
 
-	.section .sceImport.rodata
+	.size	_\name\()_\num\()_stub_head, .-_\name\()_\num\()_stub_head
+
+	.section .sceImport.rodata, "a", %progbits
 	.global	_\name\()_stub_str
 _\name\()_stub_str:
 	.asciz	"\name"
@@ -46,22 +37,26 @@ _\name\()_stub_str:
 _NID_\name = \nid
 #elif defined(FUNC)
 .if FUNC == \nid
-	.section .sceFStub.rodata
+	.section .sceFStub.rodata, "a", %progbits
+	.align	2
 	.word	0
 
-	.section .sceRefs.rodata
+	.section .sceRefs.rodata, "a", %progbits
+	.align	2
 	.word	0
 	.word	0
 	.word	0
 	.word	0
 	.word	0
 
-	.section .sceFNID.rodata
+	.section .sceFNID.rodata, "a", %progbits
+	.align	2
 	.word	0
 
-	.section .sceStubs.text.\module\().\name
+	.section .sceStubs.text.\module\().\name, "ax", %progbits
 	.align	2
 	.global	\name
+	.type	\name, %function
 \name:
 	mvn	r0, #0
 	bx	lr
@@ -69,9 +64,10 @@ _NID_\name = \nid
 	.word	0
 	.size	\name, .-\name
 
-	.section .sce_libgen_mark
+	.section .sce_libgen_mark, "", %progbits
+	.align	2
 	.word	0x00000114
-	.word	_\name\()_\num\()_stub_head
+	.word	_\module\()_\moduleNum\()_stub_head
 	.word	\name
 	.word	\nid
 	.word	_NID_\name
@@ -84,7 +80,7 @@ _NID_\name = \nid
 #ifdef FUNC
 .if FUNC == \nid
 	.global	\alias
-	.type	\alias, @function
+	.type	\alias, %function
 \alias = \funcname
 .endif
 #endif

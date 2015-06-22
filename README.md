@@ -1,11 +1,11 @@
 # psp2sdk
-An open-sourced SDK for PSP2, aiming to integrate with devkitARM
+The free SDK for PSP2, aiming to integrate with devkitARM
 
 ## Help us out!
 Want to help out? Awesome.
 
 1. Fork it.
-2. Make your changes / improvements / bug fixes etc (and ensure that you adhere to the [project style guide](https://github.com/173210/psp2sdk/wiki) whilst doing so).
+2. Make your changes / improvements / bug fixes etc (and ensure that you adhere to the [project style guide / specs](https://github.com/173210/psp2sdk/wiki) whilst doing so).
 3. Submit a pull request.
 4. Win.
 
@@ -22,8 +22,19 @@ Coders, editors for documents, testers who can use CLI are needed! Please join u
 
 [tomtomdu80] (https://github.com/tomtomdu80)
 
+[MysteryDash] (https://github.com/MysteryDash)
+
+[frangarcj] (https://github.com/frangarcj)
+
+[korgano] (https://github.com/korgano)
+
+[bigboss] (https://github.com/psxdev)
+
+[yne] (https://github.com/yne)
+
+[xerpi] (https://github.com/xerpi)
+
 Please add yourself to this list when you make changes on your fork and submit a pull request.
 
 ## Usage
-This project is licensed under the terms of the GNU Lesser General Public License as published by the Free Software Foundation; either version 2.1 of the License.
-
+This project is licensed under the terms of the Mozilla Public License Version 2.0.
